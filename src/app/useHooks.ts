@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "./axios";
 import { IPropsSearch, UserData } from "./type";
 const useHooks = () => {
@@ -8,6 +8,8 @@ const useHooks = () => {
   const [seachResult, setSearchResult] = useState<UserData[]>([]);
   const [collapsedItems, setCollapsedItems] = useState<any>({});
   const [loading, setLoading] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
   // const
 
   const onChangeSearch = useCallback((value: string) => {
@@ -18,10 +20,12 @@ const useHooks = () => {
     setLoading(true);
     try {
       const promises: any = [];
-      const response = await axios.get(`/search/users?q=${searchInput}&per_page=5`);
+      setPage(1);
+      const response = await axios.get(`/search/users?q=${searchInput}&per_page=5&page=${1}`);
+
       const data: IPropsSearch = response?.data;
       data.items.forEach((item) => {
-        promises.push(axios.get(`/users/${item?.login}/repos?per_page=3`));
+        promises.push(axios.get(`/users/${item?.login}/repos`));
       });
       const responsePromises: any = await Promise.all(promises);
       const mappedResult: UserData[] = data?.items.map((di, index) => {
@@ -31,13 +35,16 @@ const useHooks = () => {
           collapsed: false,
         };
       });
+      setTotalPages(Math.ceil(data?.total_count / 5));
       setSearchResult(mappedResult);
       setIsSearch(true);
     } catch (error) {
     } finally {
       setLoading(false);
     }
-  }, [searchInput]);
+  }, [searchInput, page]);
+
+  console.log("total Pages", totalPages);
 
   const toggleCollapse = (index: number) => {
     setCollapsedItems((prevState: any) => ({
@@ -55,16 +62,47 @@ const useHooks = () => {
     [handleSearch]
   );
 
+  const loadMore = useCallback(async () => {
+    setLoading(true);
+    try {
+      setPage(page + 1);
+      const promises: any = [];
+      const response = await axios.get(
+        `/search/users?q=${searchInput}&per_page=5&page=${page + 1}`
+      );
+
+      const data: IPropsSearch = response?.data;
+      data.items.forEach((item) => {
+        promises.push(axios.get(`/users/${item?.login}/repos`));
+      });
+      const responsePromises: any = await Promise.all(promises);
+      const mappedResult: UserData[] = data?.items.map((di, index) => {
+        return {
+          ...di,
+          repos: responsePromises[index].data,
+          collapsed: false,
+        };
+      });
+      setSearchResult([...seachResult, ...mappedResult]);
+    } catch (error) {
+    } finally {
+      setLoading(false);
+    }
+  }, [page, searchInput, seachResult]);
+
   return {
     searchInput,
     isSearch,
     seachResult,
     collapsedItems,
     loading,
+    page,
+    totalPages,
     onChangeSearch,
     handleSearch,
     toggleCollapse,
     handleKeyDown,
+    loadMore,
   };
 };
 

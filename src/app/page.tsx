@@ -1,20 +1,23 @@
 "use client";
-import Image from "next/image";
 import React from "react";
 import { RepoData } from "./type";
 import useHooks from "./useHooks";
-export default function Home() {
+function Home(): JSX.Element {
   const {
     searchInput,
     isSearch,
     seachResult,
     collapsedItems,
     loading,
+    page,
+    totalPages,
     onChangeSearch,
     handleSearch,
     toggleCollapse,
     handleKeyDown,
+    loadMore,
   } = useHooks();
+
   return (
     <>
       <div className="flex flex-col p-5">
@@ -78,7 +81,15 @@ export default function Home() {
             ))}
           </div>
         )}
+        {!!seachResult.length && page !== totalPages && (
+          <div className="text-center mt-2 cursor" onClick={loadMore}>
+            {" "}
+            {loading ? "Loading ..." : "Load More"}
+          </div>
+        )}
       </div>
     </>
   );
 }
+
+export default React.memo(Home);
